@@ -1,0 +1,27 @@
+# Static table lookup for hostnames.
+# See hosts(5) for details.
+127.0.0.1    localhost
+::1          localhost
+
+192.168.1.1         www.test1.com test1-v4 test
+192.168.3.1         www.test1.com
+2409::1             www.test1.com test1-v6
+2409:fe02::1        www.test1.com
+
+192.168.2.1         www.test2.com test2.com test2
+2408:fe08:cd13::2   www.test2.com test2.com test2
+
+192.168.3.3         www.test3.com
+192.168.4.4         www.test4.com test4.com test4
+192.168.5.5         www.test5.com test5.com test5
+192.168.6.6         www.test6.com test6.com test6
+192.168.7.7         www.test7.com test7.com test7
+192.168.8.8         www.test8.com test8.com test8
+192.168.9.9         www.test9.com test9.com test9
+192.168.10.10       www.test10.com test10.com test10
+192.168.11.11       www.test11.com test11.com test11
+192.168.12.12       www.test12.com test12.com test12
+192.168.13.13       www.test13.com test13.com test13
+192.168.14.14       www.test14.com test14.com test14
+192.168.15.15       www.test15.com test15.com test15
+192.168.16.16       www.test16.com test16.com test16
