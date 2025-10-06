@@ -185,22 +185,6 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE],
         - do not need domain name, use pointer instead
         - need to support both IPv4 and IPv6
  */
-inline int get_ip_type(const char *ip) {
-  int type_flag = 0;
-  for (int i = 0; ip[i] != '\0'; i++) {
-    if (ip[i] == '.') {
-      type_flag = 1;
-      break;
-    } else if (ip[i] == ':') {
-      type_flag = 2;
-      break;
-    }
-  }
-
-  return type_flag;
-}
-// MEMO: 我感觉这个question param应该是在转换ip的时候用到的，因为question里有ip
-// type，可以根据这个直接转换，但我选择写了个函数判断ip是什么样的类型
 int transform_to_response(unsigned char *buf, int len,
                           const char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE],
                           int count, const dns_question_t *question) {
@@ -211,50 +195,57 @@ int transform_to_response(unsigned char *buf, int len,
   header->qr = 1;
   header->ra = 1;
   header->rcode = 0;
-  header->ancount = htons(count);
   header->nscount = 0;
   header->arcount = 0;
 
+  uint16_t query_type = ntohs(question->type);
   unsigned char *answer_start = buf + len;
   int response_len = len;
+  int valid_answer_count = 0;
 
   for (int i = 0; i < count; i++) {
     const char *ip_ptr = ip[i];
-    int ip_type = get_ip_type(ip_ptr);
-    if (ip_type == 0) {
+    if (ip_ptr == NULL || strlen(ip_ptr) == 0) {
       continue;
     }
 
-    if (ip_type == DNS_TYPE_A) {
+    struct in_addr ipv4_addr;
+    struct in6_addr ipv6_addr;
+    int ipv4_ok = inet_pton(AF_INET, ip_ptr, &ipv4_addr);
+    int ipv6_ok = inet_pton(AF_INET6, ip_ptr, &ipv6_addr);
+
+    if (query_type == DNS_TYPE_A && ipv4_ok == 1) {
+      // 构造 IPv4 回答（A 记录）
       dns_answer_v4_t *ans = (dns_answer_v4_t *)answer_start;
-      ans->name = htons(0xC00C);
-      ans->type = htons(DNS_TYPE_A);
-      ans->cls = htons(DNS_CLASS_IN);
-      ans->ttl = htonl(DNS_DEFAULT_TTL);
-      ans->len = htons(4);
+      ans->name = htons(0xC00C);     // 域名指针：指向请求中的 QNAME
+      ans->type = htons(DNS_TYPE_A); // 回答类型：与查询类型一致（A）
+      ans->cls = htons(DNS_CLASS_IN);    // 类别：IN（互联网）
+      ans->ttl = htonl(DNS_DEFAULT_TTL); // TTL：180 秒（网络字节序）
+      ans->len = htons(4);               // RDLENGTH：IPv4 占 4 字节
+      ans->ip = ipv4_addr.s_addr; // RDATA：IPv4 二进制（inet_pton 已转网络序）
 
-      struct in_addr addr;
-      inet_pton(AF_INET, ip_ptr, &addr);
-      ans->ip = addr.s_addr;
-
+      // 更新指针和长度，计数有效回答
       response_len += DNS_ANSWER_v4_SIZE;
       answer_start += DNS_ANSWER_v4_SIZE;
-    } else {
+      valid_answer_count++;
+
+    } else if (query_type == DNS_TYPE_AAAA && ipv6_ok == 1) {
+      // 构造 IPv6 回答（AAAA 记录）
       dns_answer_v6_t *ans = (dns_answer_v6_t *)answer_start;
-      ans->name = htons(0xC00C);
-      ans->type = htons(DNS_TYPE_AAAA);
-      ans->cls = htons(DNS_CLASS_IN);
-      ans->ttl = htonl(DNS_DEFAULT_TTL);
-      ans->len = htons(16);
+      ans->name = htons(0xC00C); // 域名指针：指向请求中的 QNAME
+      ans->type = htons(DNS_TYPE_AAAA); // 回答类型：与查询类型一致（AAAA）
+      ans->cls = htons(DNS_CLASS_IN);    // 类别：IN（互联网）
+      ans->ttl = htonl(DNS_DEFAULT_TTL); // TTL：180 秒（网络字节序）
+      ans->len = htons(16);              // RDLENGTH：IPv6 占 16 字节
+      memcpy(&ans->iph, &ipv6_addr.s6_addr[0], 8); // RDATA：IPv6 高 64 位
+      memcpy(&ans->ipl, &ipv6_addr.s6_addr[8], 8); // RDATA：IPv6 低 64 位
 
-      struct in6_addr addr6;
-      inet_pton(AF_INET6, ip_ptr, &addr6);
-      memcpy(&ans->iph, &addr6.s6_addr[0], 8);
-      memcpy(&ans->ipl, &addr6.s6_addr[8], 8);
-
+      // 更新指针和长度，计数有效回答
       response_len += DNS_ANSWER_v6_SIZE;
       answer_start += DNS_ANSWER_v6_SIZE;
+      valid_answer_count++;
     }
   }
+  header->ancount = htons(valid_answer_count);
   return response_len;
 }
