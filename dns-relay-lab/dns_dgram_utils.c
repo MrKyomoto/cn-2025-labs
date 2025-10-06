@@ -56,7 +56,7 @@ int parse_question_name(char *name, int offset, const unsigned char *buf) {
 void parse_question_section(char *name, dns_question_t *question,
                             const unsigned char *buf) {
   // NOTE: header len is fixed 12 bytes
-  int offset = 12;
+  int offset = DNS_HEADER_SIZE;
   int name_len = parse_question_name(name, offset, buf);
   offset += name_len;
 
@@ -198,7 +198,8 @@ int transform_to_response(unsigned char *buf, int len,
   header->nscount = 0;
   header->arcount = 0;
 
-  uint16_t query_type = ntohs(question->type);
+  // MEMO: 前边的parse_question已经把大小端给转换过了
+  uint16_t query_type = question->type;
   unsigned char *answer_start = buf + len;
   int response_len = len;
   int valid_answer_count = 0;
