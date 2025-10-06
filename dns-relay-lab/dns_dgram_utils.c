@@ -207,21 +207,17 @@ int transform_to_response(unsigned char *buf, int len,
   if (buf == NULL || len < 12 || count <= 0 || count > MAX_ANSWER_COUNT) {
     return len;
   }
+  dns_header_t *header = (dns_header_t *)buf;
+  header->qr = 1;
+  header->ra = 1;
+  header->rcode = 0;
+  header->ancount = htons(count);
+  header->nscount = 0;
+  header->arcount = 0;
 
-  buf[2] = 0x81;
-  buf[3] = 0x80;
-
-  uint16_t ancount = htons(count);
-  memcpy(&buf[6], &ancount, sizeof(ancount));
-
-  uint16_t nscount = htons(0);
-  memcpy(&buf[8], &nscount, sizeof(nscount));
-
-  uint16_t arcount = htons(0);
-  memcpy(&buf[10], &arcount, sizeof(arcount));
-
-  // NOTE: Answer Section: NAME, TYPE, CLASS, TTL, RDLENGTH, RDATA
+  unsigned char *answer_start = buf + len;
   int response_len = len;
+
   for (int i = 0; i < count; i++) {
     const char *ip_ptr = ip[i];
     int ip_type = get_ip_type(ip_ptr);
@@ -229,55 +225,35 @@ int transform_to_response(unsigned char *buf, int len,
       continue;
     }
 
-    // NAME pointer 2byte 0xC00C
-    buf[response_len] = 0xC0;
-    response_len++;
-    buf[response_len] = 0x0C;
-    response_len++;
+    if (ip_type == DNS_TYPE_A) {
+      dns_answer_v4_t *ans = (dns_answer_v4_t *)answer_start;
+      ans->name = htons(0xC00C);
+      ans->type = htons(DNS_TYPE_A);
+      ans->cls = htons(DNS_CLASS_IN);
+      ans->ttl = htonl(DNS_DEFAULT_TTL);
+      ans->len = htons(4);
 
-    // TYPE 2byte
-    uint16_t type;
-    if (ip_type == 1) {
-      // NOTE: ipv4
-      type = htons(1);
-    } else if (ip_type == 2) {
-      // NOTE: ipv6
-      type = htons(28);
-    }
-    memcpy(&buf[response_len], &type, sizeof(type));
-    response_len += sizeof(type);
-
-    // CLASS 2byte
-    uint16_t class = htons(1);
-    memcpy(&buf[response_len], &class, sizeof(class));
-    response_len += sizeof(class);
-
-    // TTL 4byte, set 60s
-    uint32_t ttl = htonl(60);
-    memcpy(&buf[response_len], &ttl, sizeof(ttl));
-    response_len += sizeof(ttl);
-
-    // RDLENGTH 2byte
-    uint16_t rdlength;
-    if (ip_type == 1) {
-      rdlength = htons(4);
-    } else {
-      rdlength = htons(16);
-    }
-    memcpy(&buf[response_len], &rdlength, sizeof(rdlength));
-    response_len += sizeof(rdlength);
-
-    // RDATA
-    if (ip_type == 1) {
       struct in_addr addr;
       inet_pton(AF_INET, ip_ptr, &addr);
-      memcpy(&buf[response_len], &addr.s_addr, 4);
-      response_len += 4;
+      ans->ip = addr.s_addr;
+
+      response_len += DNS_ANSWER_v4_SIZE;
+      answer_start += DNS_ANSWER_v4_SIZE;
     } else {
-      struct in6_addr addr;
-      inet_pton(AF_INET6, ip_ptr, &addr);
-      memcpy(&buf[response_len], &addr.s6_addr, 16);
-      response_len += 16;
+      dns_answer_v6_t *ans = (dns_answer_v6_t *)answer_start;
+      ans->name = htons(0xC00C);
+      ans->type = htons(DNS_TYPE_AAAA);
+      ans->cls = htons(DNS_CLASS_IN);
+      ans->ttl = htonl(DNS_DEFAULT_TTL);
+      ans->len = htons(16);
+
+      struct in6_addr addr6;
+      inet_pton(AF_INET6, ip_ptr, &addr6);
+      memcpy(&ans->iph, &addr6.s6_addr[0], 8);
+      memcpy(&ans->ipl, &addr6.s6_addr[8], 8);
+
+      response_len += DNS_ANSWER_v6_SIZE;
+      answer_start += DNS_ANSWER_v6_SIZE;
     }
   }
   return response_len;
