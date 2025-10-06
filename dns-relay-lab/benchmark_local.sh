@@ -9,4 +9,4 @@ for i in {1..16}; do
     domains+="www.test${i}.com "
 done
 
-python dns_benchmark.py --queries $queries --concurrency $concurrency --domains $domains
+python3 dns_benchmark.py --queries $queries --concurrency $concurrency --domains $domains

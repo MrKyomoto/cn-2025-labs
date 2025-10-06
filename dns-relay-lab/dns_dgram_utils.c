@@ -159,7 +159,7 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE],
     for (int i = 0; i < 8 && name_buf[i][0] != '\0'; i++) {
       if (strcmp(name_buf[i], name) == 0) {
         if (ip_count < MAX_ANSWER_COUNT) {
-          strncpy(ip[ip_count], ip_buf, MAX_IP_BUFFER_SIZE - 1);
+          strlcpy(ip[ip_count], ip_buf, MAX_IP_BUFFER_SIZE - 1);
           ip[ip_count][MAX_IP_BUFFER_SIZE - 1] = '\0';
           ip_count++;
         }
@@ -167,6 +167,7 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE],
       }
     }
   }
+  fclose(fp);
   return ip_count;
 }
 

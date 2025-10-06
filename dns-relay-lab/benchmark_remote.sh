@@ -13,4 +13,4 @@ domains="www.baidu.com \
     csdiy.wiki
     mirrors.tuna.tsinghua.edu.cn"
 
-python dns_benchmark.py --queries $queries --concurrency $concurrency --domains $domains
+python3 dns_benchmark.py --queries $queries --concurrency $concurrency --domains $domains
