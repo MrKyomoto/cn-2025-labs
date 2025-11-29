@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>1&period; &#x4ee3;&#x7801;&#x7ed3;&#x6784;</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h1 id="1-代码结构">1. 代码结构</h1>
+<h2 id="11-整体结构">1.1 整体结构</h2>
+<ul>
+<li><code>dns_relay</code> - 主程序入口</li>
+<li><code>dns_dgram_utils</code> - 解析与构造DNS报文</li>
+<li><code>dns_relay_utils</code> - 网络事件与数据发送工具</li>
+</ul>
+<h2 id="12-各模块的作用">1.2 各模块的作用</h2>
+<h3 id="121-dns_relay">1.2.1 <code>dns_relay</code></h3>
+<ul>
+<li><code>dns_relay.h</code>
+定义基础配置常量,包括:</li>
+</ul>
+<ol>
+<li>监听地址, 上游DNS服务器地址</li>
+<li>缓冲区大小</li>
+<li>最大并发事件数</li>
+<li>mappings 文件</li>
+</ol>
+<ul>
+<li><code>dns_relay.c</code></li>
+</ul>
+<ol>
+<li>初始化<code>initialize()</code></li>
+</ol>
+<ul>
+<li>创建UDP监听套接字(<code>listen_fd</code>)和上游通信套接字(<code>upstream_fd</code>)</li>
+<li>绑定本地地址</li>
+<li>初始化epoll实例,监听两个套接字的读事件</li>
+</ul>
+<ol start="2">
+<li>事件循环</li>
+</ol>
+<ul>
+<li>通过<code>epoll_wait()</code>等待事件(客户端请求 or 上游响应)</li>
+<li>if event comes from listen_fd -&gt; 1. 解析dns header 2. check if it is in mappings 3. yes then <code>transform_to_response()</code> to client 4. no then pass it to upstream dns
+<ul>
+<li>本地解析流程: 1. <code>try_answer_local()</code>读取mapping文件, 内容为<code>IP name1 name2 ... name8</code> 2. <code>transform_to_response()</code>将请求报文转换为response, 设置头部<code>qr = 1, ra = 1</code>, 根据查询类型构造对应类型的应答段, 用指针压缩重复域名</li>
+</ul>
+</li>
+<li>if event comes from upstream_fd -&gt; 根据报文ID查找对应的客户端,转发响应
+<ul>
+<li>上游转发流程: 用pending_client暂存客户端信息(以DNS报文ID为索引),受到上游响应后通过报文ID查询原客户端并转发响应</li>
+</ul>
+</li>
+</ul>
+<h3 id="122-dns_dgram_util">1.2.2 <code>dns_dgram_util</code></h3>
+<ul>
+<li>
+<p><code>dns_dgram_util.h</code>
+定义了dns相关的核心数据结构,并且利用c语言的特性将位运算巧妙的化为普通的结构体运算</p>
+</li>
+<li>
+<p><code>dns_dgram_util.c</code></p>
+</li>
+</ul>
+<ol>
+<li><code>parse_question_name</code></li>
+</ol>
+<ul>
+<li>解析DNS中的域名(支持<strong>指针压缩</strong>), 具体来说, 遇到指针时, 就跳转到指针指向的地址继续将字符拼接到name尾部, 整个过程是递归式的, 即可出现嵌套指针</li>
+</ul>
+<ol start="2">
+<li><code>parse_question_section</code></li>
+</ol>
+<ul>
+<li>从DNS中提取完整的查询信息(域名,类型,类别)</li>
+</ul>
+<ol start="3">
+<li><code>try_answer_local</code></li>
+</ol>
+<ul>
+<li>从本地mapping文件中查找域名对应的IP, 具体来说, 先trim掉空白符,然后提取IP, 然后继续trim空白符, 然后提取name</li>
+</ul>
+<ol start="4">
+<li><code>transform_to_response</code></li>
+</ol>
+<ul>
+<li>将DNS请求报文转换为应答报文(复用原报文缓冲区,添加本地解析结果)</li>
+</ul>
+<h1 id="2-运行结果">2. 运行结果</h1>
+<p><img src="file:////home/kyomoto/repo/cpp/cn-2025-labs/dns-relay-lab/asset/nslookup.png" alt="nslookup">
+<img src="file:////home/kyomoto/repo/cpp/cn-2025-labs/dns-relay-lab/asset/local.png" alt="local">
+<img src="file:////home/kyomoto/repo/cpp/cn-2025-labs/dns-relay-lab/asset/remote.png" alt="remote"></p>
+
+            
+            
+        </body>
+        </html>
